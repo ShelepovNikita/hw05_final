@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+    
+{% block title %}
+  Здесь будет информация о группах проекта Yatube
+{% endblock %} 
+
+{% block content %}
+  <div class="container py-5">
+    <h1>
+      {{ group.title }}
+    </h1>
+    <p>
+      {{ group.description|linebreaksbr }}
+    </p>
+    {% for post in page_obj %}
+    <article>
+      {% include 'includes/post.html' %}
+    <article>
+    {% if not forloop.last %}<hr>{% endif %}
+    {% endfor %}
+  </div>
+  {% include 'posts/includes/paginator.html' %}
+{% endblock %}
