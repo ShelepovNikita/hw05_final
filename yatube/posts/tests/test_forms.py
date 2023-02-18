@@ -2,12 +2,24 @@
 import shutil
 import tempfile
 
-from django.test import Client, TestCase, override_settings
+from django.test import Client, override_settings, TestCase
 from django.urls import reverse
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from posts.models import Post, Group, Comment, User
+from posts.models import Comment, Group, Post, User
+from posts.tests.constants import (
+    ADD_COMMENT_URL,
+    CREATE_POST_URL,
+    PROFILE_URL,
+    POST_DETAIL_URL,
+    UPDATE_POST_URL
+)
+from posts.tests.constants import (
+    IMAGE,
+    NAME_OF_IMAGE,
+    TEST_IMAGE,
+)
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -28,40 +40,20 @@ class PostFormTest(TestCase):
             text='Тестовый пост',
             group=cls.group,
         )
-        # cls.comment = Comment.objects.create()
-
-        cls.URL_POST_CREATE = 'posts:post_create'
-        cls.URL_PROFILE = 'posts:profile'
-        cls.URL_UPDATE_POST = 'posts:update_post'
-        cls.URL_POST_DETAIL = 'posts:post_detail'
-        cls.URL_ADD_COMMENT = 'posts:add_comment'
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(PostFormTest.user)
 
+    def tearDown(self):
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
     def test_post_create(self):
         '''Валидная форма создает запись в Post.'''
         posts_count = Post.objects.count()
-        test_image = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-
-        NAME_OF_IMAGE = 'test.gif'
-
         uploaded = SimpleUploadedFile(
             name=NAME_OF_IMAGE,
-            content=test_image,
+            content=TEST_IMAGE,
             content_type='image/gif'
         )
         form_data = {
@@ -70,37 +62,50 @@ class PostFormTest(TestCase):
             'image': uploaded
         }
         response = self.authorized_client.post(
-            reverse(self.URL_POST_CREATE),
+            reverse(CREATE_POST_URL),
             data=form_data,
             follow=True,
         )
-        self.assertRedirects(response, reverse(self.URL_PROFILE,
+        self.assertRedirects(response, reverse(PROFILE_URL,
                                                args=[self.user.username]))
         self.assertEqual(Post.objects.count(), posts_count + 1)
-        self.assertTrue(
-            Post.objects.filter(
-                author=self.user.id,
-                text=form_data['text'],
-                group=form_data['group'],
-                image=f'posts/{NAME_OF_IMAGE}'
-            ).exists()
-        )
+        post = Post.objects.get(
+            author=self.user.id,
+            text=form_data['text'],
+            group=form_data['group'],
+            image=IMAGE)
+        self.assertEqual(post.text, form_data['text'])
+        self.assertEqual(post.group, self.group)
+        self.assertEqual(post.image, IMAGE)
 
     def test_post_edit(self):
         '''Изменение поста с post_id в базе данных.'''
+        uploaded = SimpleUploadedFile(
+            name=NAME_OF_IMAGE,
+            content=TEST_IMAGE,
+            content_type='image/gif'
+        )
         post_edit_text = 'Тестовый пост 2 - отредактированный'
         form_data = {
             'text': post_edit_text,
-            'group': self.post.group.id
+            'group': self.post.group.id,
+            'image': uploaded
         }
         response = self.authorized_client.post(
-            reverse(self.URL_UPDATE_POST, args=[self.post.id]),
+            reverse(UPDATE_POST_URL, args=[self.post.id]),
             data=form_data,
             follow=True,
         )
-        self.assertRedirects(response, reverse(self.URL_POST_DETAIL,
+        self.assertRedirects(response, reverse(POST_DETAIL_URL,
                                                args=[self.post.id]))
-        self.assertTrue(Post.objects.filter(**form_data).exists())
+        post = Post.objects.get(
+            author=self.user.id,
+            text=form_data['text'],
+            group=form_data['group'],
+            image=IMAGE)
+        self.assertEqual(post.text, form_data['text'])
+        self.assertEqual(post.group, self.group)
+        self.assertEqual(post.image, IMAGE)
 
     def test_add_comment(self):
         '''Валидная форма создает запись в Comments.'''
@@ -109,11 +114,11 @@ class PostFormTest(TestCase):
             'text': 'Текст комментария'
         }
         response = self.authorized_client.post(
-            reverse(self.URL_ADD_COMMENT, args=[self.post.id]),
+            reverse(ADD_COMMENT_URL, args=[self.post.id]),
             data=form_data,
             follow=True
         )
-        self.assertRedirects(response, reverse(self.URL_POST_DETAIL,
+        self.assertRedirects(response, reverse(POST_DETAIL_URL,
                                                args=[self.post.id]))
         self.assertEqual(Post.objects.count(), comments_count + 1)
         self.assertTrue(Comment.objects.filter(**form_data).exists())

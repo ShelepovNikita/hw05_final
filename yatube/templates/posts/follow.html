@@ -11,7 +11,7 @@
     {% for post in page_obj %}
     {{ post }}
     <article>
-        {% include 'includes/post.html' %}  
+        {% include 'posts/includes/post.html' %}  
     </article>
     {% if not forloop.last %}<hr>{% endif %}
     {% endfor %}

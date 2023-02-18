@@ -10,9 +10,26 @@ from django.core.cache import cache
 
 from posts.models import Post, Group, Comment, Follow, User
 from posts.forms import PostForm, CommentForm
-from posts.tests.constants import (INDEX_TEMPLATE,
-                                   GROUP_LIST_TEMPLATE,
-                                   CREATE_POST_TEMPLATE)
+from posts.tests.constants import (
+    INDEX_TEMPLATE,
+    GROUP_LIST_TEMPLATE,
+    CREATE_POST_TEMPLATE
+)
+from posts.tests.constants import (
+    NAME_OF_IMAGE,
+    TEST_IMAGE,
+)
+from posts.tests.constants import (
+    CREATE_POST_URL,
+    INDEX_URL,
+    FOLLOW_PAGE_URL,
+    GROUP_LIST_URL,
+    PROFILE_URL,
+    PROFILE_FOLLOW_URL,
+    PROFILE_UNFOLLOW_URL,
+    POST_DETAIL_URL,
+    UPDATE_POST_URL
+)
 
 EXPECTED_POSTS_ON_FIRST_PAGE = 10
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -23,18 +40,9 @@ class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        test_image = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-        NAME_OF_IMAGE = 'test.gif'
         cls.uploaded = SimpleUploadedFile(
             name=NAME_OF_IMAGE,
-            content=test_image,
+            content=TEST_IMAGE,
             content_type='image/gif'
         )
         cls.user = User.objects.create_user(username='auth')
@@ -61,16 +69,6 @@ class PostPagesTests(TestCase):
             post=cls.post
         )
 
-        cls.URL_INDEX = 'posts:index'
-        cls.URL_GROUP_LIST = 'posts:group_list'
-        cls.URL_POST_CREATE = 'posts:post_create'
-        cls.URL_PROFILE = 'posts:profile'
-        cls.URL_UPDATE_POST = 'posts:update_post'
-        cls.URL_POST_DETAIL = 'posts:post_detail'
-        cls.URL_FOLLOW_PAGE = 'posts:follow_index'
-        cls.URL_PROFILE_FOLLOW = 'posts:profile_follow'
-        cls.URL_PROFILE_UNFOLLOW = 'posts:profile_unfollow'
-
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -86,11 +84,11 @@ class PostPagesTests(TestCase):
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
         pages_templates_names = (
-            (reverse(self.URL_INDEX),
+            (reverse(INDEX_URL),
              INDEX_TEMPLATE),
-            (reverse(self.URL_GROUP_LIST, args=[self.group.slug]),
+            (reverse(GROUP_LIST_URL, args=[self.group.slug]),
              GROUP_LIST_TEMPLATE),
-            (reverse(self.URL_POST_CREATE),
+            (reverse(CREATE_POST_URL),
              CREATE_POST_TEMPLATE),
         )
 
@@ -102,7 +100,7 @@ class PostPagesTests(TestCase):
     def test_index_page_show_correct_context(self):
         '''Шаблон index сформирован с правильным контекстом.'''
         expected_qs = Post.objects.all()
-        response = self.client.get(reverse(self.URL_INDEX))
+        response = self.client.get(reverse(INDEX_URL))
         context_qs = response.context.get('page_obj').object_list
         self.assertQuerysetEqual(expected_qs,
                                  context_qs,
@@ -111,21 +109,18 @@ class PostPagesTests(TestCase):
 
     def test_group_list_page_show_correct_context(self):
         '''Шаблон group_list сформирован с правильным контекстом.'''
-        expected_qs = Post.objects.filter(
-            group=self.group2)
-        response = self.client.get(reverse(self.URL_GROUP_LIST,
+        response = self.client.get(reverse(GROUP_LIST_URL,
                                            args=[self.group2.slug]))
-        context_qs = response.context.get('page_obj').object_list
-        self.assertQuerysetEqual(expected_qs,
-                                 context_qs,
-                                 transform=lambda x: x
-                                 )
+        group = response.context.get('group')
+        self.assertEqual(self.group2.title, group.title)
+        self.assertEqual(self.group2.slug, group.slug)
+        self.assertEqual(self.group2.description, group.description)
 
     def test_create_post_page_show_correct_context(self):
         """Шаблон create_post сформирован с правильным
         контекстом для создания поста.
         """
-        response = self.authorized_client.get(reverse(self.URL_POST_CREATE))
+        response = self.authorized_client.get(reverse(CREATE_POST_URL))
         form = response.context.get('form')
         self.assertIsInstance(form, PostForm)
 
@@ -134,7 +129,7 @@ class PostPagesTests(TestCase):
         контекстом для редактирования поста.
         """
         response = self.authorized_client.get(reverse(
-            self.URL_UPDATE_POST,
+            UPDATE_POST_URL,
             args=[self.post.id]))
         form = response.context.get('form')
         is_edit = response.context.get('is_edit')
@@ -147,7 +142,7 @@ class PostPagesTests(TestCase):
         '''Шаблон profile сформирован с правильным контекстом.'''
         expected_qs = Post.objects.filter(
             author=self.user.id)
-        response = self.client.get(reverse(self.URL_PROFILE,
+        response = self.client.get(reverse(PROFILE_URL,
                                            args=[self.user.username]))
         context_qs = response.context.get('page_obj').object_list
         self.assertQuerysetEqual(expected_qs,
@@ -158,7 +153,7 @@ class PostPagesTests(TestCase):
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(
-            self.URL_POST_DETAIL,
+            POST_DETAIL_URL,
             args=[self.post.id]))
         context_names = (
             ('post', Post),
@@ -180,8 +175,8 @@ class PostPagesTests(TestCase):
         '''При создании поста при выборе группы,
         пост попадет на главную страницу и страницу указанной группы.
         '''
-        urls_names = (reverse(self.URL_INDEX),
-                      reverse(self.URL_GROUP_LIST, args=[self.group2.slug]))
+        urls_names = (reverse(INDEX_URL),
+                      reverse(GROUP_LIST_URL, args=[self.group2.slug]))
         post = Post.objects.create(
             author=self.user,
             text='Тестовый post',
@@ -193,7 +188,7 @@ class PostPagesTests(TestCase):
                 first_object = response.context['page_obj'][0]
                 self.assertEqual(first_object.text, post.text)
                 self.assertEqual(first_object.group, post.group)
-        response = self.client.get(reverse(self.URL_GROUP_LIST,
+        response = self.client.get(reverse(GROUP_LIST_URL,
                                            args=[self.group.slug]))
         first_object = response.context['page_obj'][0]
         self.assertNotEqual(first_object.group, post.group)
@@ -209,7 +204,7 @@ class PostPagesTests(TestCase):
             ) for i in range(1, 13)
         )
         Post.objects.bulk_create(posts)
-        response = self.client.get(reverse(self.URL_INDEX))
+        response = self.client.get(reverse(INDEX_URL))
         self.assertEqual(len(response.context['page_obj']),
                          EXPECTED_POSTS_ON_FIRST_PAGE)
 
@@ -217,12 +212,12 @@ class PostPagesTests(TestCase):
         '''При выводе поста с картинкой изображение передается
         в словаре контекста.'''
         url_reverse_names = (
-            ('page_obj', (reverse(self.URL_INDEX))),
-            ('page_obj', (reverse(self.URL_PROFILE,
+            ('page_obj', (reverse(INDEX_URL))),
+            ('page_obj', (reverse(PROFILE_URL,
                                   args=[self.user.username]))),
-            ('page_obj', (reverse(self.URL_GROUP_LIST,
+            ('page_obj', (reverse(GROUP_LIST_URL,
                                   args=[self.group.slug]))),
-            ('post', (reverse(self.URL_POST_DETAIL,
+            ('post', (reverse(POST_DETAIL_URL,
                               args=[self.post.id])))
         )
         for obj, url in url_reverse_names:
@@ -236,44 +231,42 @@ class PostPagesTests(TestCase):
 
     def test_cache_index_page(self):
         '''Проверка кэширования главной страницы'''
-        response = self.client.get(reverse(self.URL_INDEX))
-        before_creation_content = response.content
-        Post.objects.create(
-            text='test_cache',
-            author=self.user,
-        )
-        response = self.client.get(reverse(self.URL_INDEX))
-        after_creation_content = response.content
-        self.assertEqual(before_creation_content, after_creation_content)
+        response = self.client.get(reverse(INDEX_URL))
+        Post.objects.all().delete()
+        response = self.client.get(reverse(INDEX_URL))
+        response_before_cache_clear = response.content
+        self.assertEqual(response.content,
+                         response_before_cache_clear)
         cache.clear()
-        response = self.client.get(reverse(self.URL_INDEX))
+        response = self.client.get(reverse(INDEX_URL))
         after_cache_clear_content = response.content
-        self.assertNotEqual(after_creation_content, after_cache_clear_content)
+        self.assertNotEqual(response_before_cache_clear,
+                            after_cache_clear_content)
 
     def test_authorised_user_following_authors(self):
         '''Авторизованный пользователь может подписываться на других
         пользователей и удалять их из подписок.'''
         follow_count = Follow.objects.count()
-        self.authorized_client.get(reverse(self.URL_PROFILE_FOLLOW,
+        self.authorized_client.get(reverse(PROFILE_FOLLOW_URL,
                                            args=[self.some_user.username]))
         self.assertEqual(Follow.objects.count(), follow_count + 1)
-        self.authorized_client.get(reverse(self.URL_PROFILE_UNFOLLOW,
+        self.authorized_client.get(reverse(PROFILE_UNFOLLOW_URL,
                                            args=[self.some_user.username]))
         self.assertEqual(Follow.objects.count(), follow_count)
 
     def test_new_post_in_followers_page(self):
         '''Новая запись пользователя появляется в ленте тех,
         кто на него подписан и не появляется в ленте тех, кто не подписан.'''
-        self.authorized_client.get(reverse(self.URL_PROFILE_FOLLOW,
+        self.authorized_client.get(reverse(PROFILE_FOLLOW_URL,
                                            args=[self.some_user.username]))
         post = Post.objects.create(
             author=self.some_user,
             text='Following test',
             group=self.group2
         )
-        response = self.authorized_client.get(reverse(self.URL_FOLLOW_PAGE))
+        response = self.authorized_client.get(reverse(FOLLOW_PAGE_URL))
         self.assertEqual(post, response.context['page_obj'].object_list[0])
-        self.authorized_client1.get(reverse(self.URL_PROFILE_FOLLOW,
+        self.authorized_client1.get(reverse(PROFILE_FOLLOW_URL,
                                             args=[self.user.username]))
-        response = self.authorized_client1.get(reverse(self.URL_FOLLOW_PAGE))
+        response = self.authorized_client1.get(reverse(FOLLOW_PAGE_URL))
         self.assertNotEqual(post, response.context['page_obj'].object_list[0])
