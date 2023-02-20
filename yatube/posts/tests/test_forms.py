@@ -69,11 +69,7 @@ class PostFormTest(TestCase):
         self.assertRedirects(response, reverse(PROFILE_URL,
                                                args=[self.user.username]))
         self.assertEqual(Post.objects.count(), posts_count + 1)
-        post = Post.objects.get(
-            author=self.user.id,
-            text=form_data['text'],
-            group=form_data['group'],
-            image=IMAGE)
+        post = Post.objects.first()
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group, self.group)
         self.assertEqual(post.image, IMAGE)
@@ -98,11 +94,7 @@ class PostFormTest(TestCase):
         )
         self.assertRedirects(response, reverse(POST_DETAIL_URL,
                                                args=[self.post.id]))
-        post = Post.objects.get(
-            author=self.user.id,
-            text=form_data['text'],
-            group=form_data['group'],
-            image=IMAGE)
+        post = Post.objects.first()
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group, self.group)
         self.assertEqual(post.image, IMAGE)
@@ -121,4 +113,5 @@ class PostFormTest(TestCase):
         self.assertRedirects(response, reverse(POST_DETAIL_URL,
                                                args=[self.post.id]))
         self.assertEqual(Post.objects.count(), comments_count + 1)
-        self.assertTrue(Comment.objects.filter(**form_data).exists())
+        comment = Comment.objects.first()
+        self.assertEqual(comment.text, form_data['text'])

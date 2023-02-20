@@ -9,16 +9,16 @@
   {% if following %}
     <a
       class="btn btn-lg btn-light"
-      href="{% url 'posts:profile_unfollow' author.username %}" role="button"
+      href="{% url 'posts:profile_follow' author.username %}" role="button"
     >
-      Отписаться
+      Подписаться
   </a>
   {% else %}
     <a
       class="btn btn-lg btn-primary"
-      href="{% url 'posts:profile_follow' author.username %}" role="button"
+      href="{% url 'posts:profile_unfollow' author.username %}" role="button"
     >
-      Подписаться
+      Отписаться
     </a>
   {% endif %}
 </div>

@@ -163,13 +163,6 @@ class PostPagesTests(TestCase):
             with self.subTest(obj=obj):
                 context = response.context.get(obj)
                 self.assertIsInstance(context, obj_class)
-        expected_qs = Comment.objects.filter(
-            post=self.post.id)
-        context_qs = response.context.get('comments')
-        self.assertQuerysetEqual(expected_qs,
-                                 context_qs,
-                                 transform=lambda x: x
-                                 )
 
     def test_post_create_group_show_on_index_page(self):
         '''При создании поста при выборе группы,

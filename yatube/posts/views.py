@@ -16,13 +16,13 @@ def page(request, post, posts_per_page=10):
 
 @cache_page(20, key_prefix='index_page')
 def index(request):
-    return render(request,
-                  'posts/index.html',
-                  {'page_obj': page(
-                      request,
-                      Post.objects.select_related('author', 'group').all())
-                   }
-                  )
+    return render(
+        request,
+        'posts/index.html',
+        {'page_obj': page(
+            request,
+            Post.objects.select_related('author', 'group').all())}
+    )
 
 
 def group_posts(request, slug):
@@ -39,33 +39,23 @@ def group_posts(request, slug):
 def profile(request, username):
     author = get_object_or_404(User, username=username)
     user = request.user
-    if (user.is_authenticated
-        and user != author
-            and not author.following.filter(user_id=request.user.id).exists()):
-        following = False
-    else:
-        following = True
-    return render(request,
-                  'posts/profile.html',
-                  {'page_obj': page(
-                      request,
-                      author.posts.all()),
-                   'author': author,
-                   'following': following,
-                   }
-                  )
+    return render(
+        request,
+        'posts/profile.html',
+        {'page_obj': page(request, author.posts.all()),
+         'author': author,
+         'following': (user.is_authenticated
+                       and user != author
+                       and not author.following.filter(
+                           user_id=request.user.id).exists())})
 
 
 def post_detail(request, post_id):
-    post = get_object_or_404(Post, pk=post_id)
-    form = CommentForm(request.POST or None)
-    comments = post.comments.all()
-    context = {
-        'post': post,
-        'form': form,
-        'comments': comments
-    }
-    return render(request, 'posts/post_detail.html', context)
+    return render(
+        request,
+        'posts/post_detail.html',
+        {'post': get_object_or_404(Post, pk=post_id),
+         'form': CommentForm(request.POST or None)})
 
 
 @login_required
@@ -110,14 +100,12 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    return render(request,
-                  'posts/follow.html',
-                  {'page_obj': page(
-                      request,
-                      Post.objects.filter(
-                          author__following__user=request.user))
-                   }
-                  )
+    return render(
+        request,
+        'posts/follow.html',
+        {'page_obj': page(
+            request,
+            Post.objects.filter(author__following__user=request.user))})
 
 
 @login_required
@@ -128,9 +116,7 @@ def profile_follow(request, username):
         'user': request.user,
         'author': get_object_or_404(User, username=username)
     }
-    if Follow.objects.filter(**data).exists():
-        return redirect('posts:index')
-    Follow.objects.create(**data)
+    Follow.objects.get_or_create(**data)
     return redirect('posts:profile', data['author'])
 
 
@@ -143,5 +129,5 @@ def profile_unfollow(request, username):
     ).delete()
     return redirect(
         'posts:profile',
-        get_object_or_404(User, username=username)
+        username
     )
